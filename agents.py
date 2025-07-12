@@ -1,5 +1,5 @@
 """
-Implement Agents and Environments. (Chapters 1-2)
+Implement Agents and Environments. (Chapters 1-2).
 
 The class hierarchies are as follows:
 
