@@ -135,6 +135,9 @@ if __name__ == '__main__':
         bsagt = load_agent_from_file(
             args.bsagentfile, "BeliefStateAgent")(args)
 
+    # Change directory to pacman_module, so that layout files can be found
+    os.chdir('pacman_module')
+
     total_score, total_computation_time, total_expanded_nodes = runGame(
         layout, agent, gagts, bsagt, not args.silentdisplay,
         expout=0, hiddenGhosts=args.hiddenghosts)
@@ -146,3 +149,4 @@ if __name__ == '__main__':
     s, c, e = total_score, total_computation_time, total_expanded_nodes
     f.write(str(s) + ";" + str(c) + ";" + str(e))
     f.close()
+
