@@ -41,8 +41,8 @@ class PacmanAgent(Agent):
         ----------
         - `state`: The current game state. See FAQ and class `pacman.GameState`.
         - `belief_state`: This argument is passed by the game framework when a
-                          BeliefStateAgent is active. In this context, it's the
-                          previous action and is not used in this implementation.
+                          BeliefStateAgent is active. It is not used in this
+                          implementation.
 
         Return:
         -------
@@ -100,14 +100,14 @@ class PacmanAgent(Agent):
             successor_pos = successor_state.getPacmanPosition()
 
             # Calculate the distance from the new position to the target ghost.
-            dist_to_target = util.manhattanDistance(
-                successor_pos, target_ghost_pos)
+            dist_to_target = util.manhattanDistance(successor_pos,
+                                                    target_ghost_pos)
 
             # If this action results in a shorter distance, it's the new best action.
             if dist_to_target < min_dist_after_move:
                 min_dist_after_move = dist_to_target
                 best_action = action
 
-        # Return the best action found. If no action improves the situation,
-        # it will return one of the legal actions (the last one checked).
+        # Return the best action found. If no action strictly improves the
+        # situation, this will be the last legal action checked.
         return best_action

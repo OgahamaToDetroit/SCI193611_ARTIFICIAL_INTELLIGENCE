@@ -75,6 +75,7 @@ class BeliefStateAgent(Agent):
         # for any state. To avoid issues with normalization later, we can
         # return a uniform distribution over legal positions.
         if np.sum(sensor_model) == 0:
+            # All positions have zero probability, which is problematic.
             num_legal_positions = width * height - np.sum(self.walls.data)
             if num_legal_positions > 0:
                 uniform_prob = 1.0 / num_legal_positions
@@ -102,6 +103,7 @@ class BeliefStateAgent(Agent):
         width, height = self.walls.width, self.walls.height
         transition_model = np.zeros((width, height, width, height))
 
+        # 1. Set the "fear factor" based on the ghost's personality.
         # Set fear_factor based on ghost type as per README instructions
         if self.ghost_type == 'confused':
             fear_factor = 1
@@ -112,11 +114,13 @@ class BeliefStateAgent(Agent):
         else:
             raise ValueError("Unknown ghost type: {}".format(self.ghost_type))
 
+        # 2. Iterate over all possible starting positions (x_{t-1}).
         for w2 in range(width):      # Current position w2
             for h2 in range(height):   # Current position h2
                 if self.walls[w2][h2]:
                     continue
 
+                # 3. Determine all legal successor positions (x_t).
                 # Get legal successor positions from (w2, h2)
                 successors = []
                 for dw, dh in [(0, 1), (0, -1), (1, 0), (-1, 0)]:  # N, S, E, W
@@ -129,6 +133,7 @@ class BeliefStateAgent(Agent):
                     transition_model[w2, h2, w2, h2] = 1.0
                     continue
 
+                # 4. Calculate the probability distribution over successors.
                 # Calculate probability distribution over successors
                 dist = util.Counter()
                 current_dist_to_pacman = util.manhattanDistance(
@@ -136,8 +141,10 @@ class BeliefStateAgent(Agent):
 
                 for w_succ, h_succ in successors:
                     succ_dist_to_pacman = util.manhattanDistance(
-                        (w_succ, h_succ), pacman_position)
+                        (w_succ, h_succ), pacman_position
+                    )
 
+                    # Ghosts prefer to move away from Pacman.
                     weight = 1.0
                     if succ_dist_to_pacman >= current_dist_to_pacman:
                         weight = float(fear_factor)
@@ -146,6 +153,7 @@ class BeliefStateAgent(Agent):
 
                 dist.normalize()
 
+                # 5. Populate the transition model matrix.
                 for (w1, h1), prob in dist.items():
                     transition_model[w1, h1, w2, h2] = prob
 
@@ -181,7 +189,8 @@ class BeliefStateAgent(Agent):
         num_ghosts = len(belief)
         new_beliefs = []
 
-        # The transition model is the same for all ghosts as they share the same policy
+        # The transition model is the same for all ghosts as they share the
+        # same policy, so we compute it only once.
         transition_model = self._get_transition_model(pacman_position)
 
         for i in range(num_ghosts):
@@ -192,7 +201,8 @@ class BeliefStateAgent(Agent):
 
             prev_belief = belief[i]
 
-            # 1. Prediction step: P(X_t|e_{1:t-1}) = sum_{x_{t-1}} P(X_t|x_{t-1})*P(x_{t-1}|e_{1:t-1})
+            # 1. Prediction step: P(X_t|e_{1:t-1}) =
+            #    sum_{x_{t-1}} P(X_t|x_{t-1}) * P(x_{t-1}|e_{1:t-1})
             predicted_belief = np.einsum(
                 'klwh,wh->kl', transition_model, prev_belief)
 
@@ -203,12 +213,17 @@ class BeliefStateAgent(Agent):
 
             # 3. Normalization
             s = np.sum(updated_belief_unnormalized)
-            if s == 0:
-                # Evidence was impossible. Reset to uniform belief over legal positions.
+            if s < 1e-9:  # Use a small epsilon to handle floating point issues
+                # Evidence was impossible. Reset to uniform belief over legal
+                # positions to avoid division by zero and recover.
                 num_legal_positions = width * height - np.sum(self.walls.data)
-                uniform_prob = 1.0 / num_legal_positions if num_legal_positions > 0 else 0
+                if num_legal_positions > 0:
+                    uniform_prob = 1.0 / num_legal_positions
+                else:
+                    uniform_prob = 0
                 updated_belief = np.full((width, height), uniform_prob)
                 updated_belief[self.walls.data] = 0
+
             else:
                 updated_belief = updated_belief_unnormalized / s
 
@@ -318,9 +333,10 @@ class BeliefStateAgent(Agent):
             metrics_t[f'ghost_{i}_entropy'] = entropy
 
             # Metrics for 3.b: Quality of the belief state
+
             # Metric 1: Error Distance
-            # Manhattan distance between the most likely position and the true position.
-            # Lower is better.
+            # Manhattan distance between the most likely position and the true
+            # position. Lower is better.
             predicted_pos_flat = np.argmax(belief)
             predicted_pos = np.unravel_index(predicted_pos_flat, belief.shape)
             error_dist = util.manhattanDistance(predicted_pos, true_pos)
@@ -329,7 +345,8 @@ class BeliefStateAgent(Agent):
             # Metric 2: Probability at Ground Truth
             # The probability assigned to the ghost's true location.
             # Higher is better.
-            prob_at_true_pos = belief[int(true_pos[0]), int(true_pos[1])]
+            true_x, true_y = int(true_pos[0]), int(true_pos[1])
+            prob_at_true_pos = belief[true_x, true_y]
             metrics_t[f'ghost_{i}_prob_at_true'] = prob_at_true_pos
 
         if metrics_t:
