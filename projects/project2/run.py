@@ -140,8 +140,8 @@ if __name__ == '__main__':
         hiddenGhosts=args.hiddenghosts, edibleGhosts=args.edibleghosts,
         startingIndex=startingIndex, oracleBeliefStateAgent=oraclebsagt)
 
-    print("Total score : " + str(total_score))
-    print("Total computation time (seconds) : " + str(total_computation_time))
+    print(f"Total score : {total_score}")
+    print(f"Total computation time (seconds) : {total_computation_time}")
     f = open("temp", "w+")
     s, c = total_score, total_computation_time
     f.write(str(s) + ";" + str(c))
